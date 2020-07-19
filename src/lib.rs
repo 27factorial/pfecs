@@ -1,4 +1,3 @@
-#![feature(never_type)]
 #![deny(missing_debug_implementations)]
 
 pub use archetype::Archetype;

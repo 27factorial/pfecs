@@ -34,8 +34,9 @@ pub unsafe fn debug_unreachable(_: &'static str) -> ! {
 /// a call to this function code can never as calling it in release mode is undefined
 /// behavior.
 #[cfg(debug_assertions)]
-pub unsafe fn debug_closure<F: FnOnce() -> !>(f: F) -> ! {
-    f()
+pub unsafe fn debug_closure<F: FnOnce()>(f: F) -> ! {
+    f();
+    unreachable!();
 }
 
 /// A function which calls a closure that never returns in non-release modes, but
@@ -44,6 +45,6 @@ pub unsafe fn debug_closure<F: FnOnce() -> !>(f: F) -> ! {
 /// a call to this function code can never as calling it in release mode is undefined
 /// behavior.
 #[cfg(not(debug_assertions))]
-pub unsafe fn debug_closure<F: FnOnce() -> !>(_: F) -> ! {
+pub unsafe fn debug_closure<F: FnOnce()>(_: F) -> ! {
     unreachable_unchecked();
 }
