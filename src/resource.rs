@@ -57,7 +57,7 @@ mod sealed {
                     let ($t,) = self;
                     if !allocator.register($t) {
                         panic!(
-                            "Storage of type {} was already registered\
+                            "Resource storage of type {} was already registered\
                              with the provided allocator!",
                             std::any::type_name::<ResourceStorage<$t>>(),
                         )
@@ -90,7 +90,7 @@ mod sealed {
                     $(
                         if !allocator.register($t) {
                             panic!(
-                                "Storage of type {} was already registered\
+                                "Resource storage of type {} was already registered\
                                  with the provided allocator!",
                                 std::any::type_name::<ResourceStorage<$t>>(),
                             )
@@ -129,7 +129,7 @@ mod sealed {
                     $(
                         if !allocator.register($t) {
                             panic!(
-                                "Storage of type {} was already registered\
+                                "Resource storage of type {} was already registered\
                                  with the provided allocator!",
                                 std::any::type_name::<ResourceStorage<$t>>(),
                             )
