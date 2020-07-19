@@ -3,8 +3,6 @@ use std::{
     collections::HashSet,
 };
 
-use parking_lot::{RwLockUpgradableReadGuard, RwLockWriteGuard};
-
 use crate::{entity::Entity, storage::ComponentStorageAllocator};
 
 pub trait Component: Send + Sync + 'static {}

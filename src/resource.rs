@@ -1,5 +1,3 @@
-use std::any::TypeId;
-
 use crate::storage::{ResourceStorage, ResourceStorageAllocator};
 
 pub trait Resource: Send + Sync + 'static {}
