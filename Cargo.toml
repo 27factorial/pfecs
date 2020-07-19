@@ -3,6 +3,12 @@ name = "pfecs"
 version = "0.1.0"
 authors = ["Factorial <27factorial@gmail.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "The implementation of the Projekt F ECS."
+homepage = "https://github.com/27factorial/pfecs"
+repository = "https://github.com/27factorial/pfecs"
+readme = "README.MD"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
