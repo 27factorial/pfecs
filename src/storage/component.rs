@@ -315,98 +315,71 @@ impl fmt::Debug for ComponentStorageBytes {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ComponentStorage<T: Component> {
-    ids: Vec<EntityId>,
-    comps: Vec<T>,
+    inner: Vec<(EntityId, T)>,
 }
 
 impl<T: Component> ComponentStorage<T> {
     pub fn new() -> Self {
-        Self {
-            ids: Vec::new(),
-            comps: Vec::new(),
-        }
+        Self { inner: Vec::new() }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            ids: Vec::with_capacity(capacity),
-            comps: Vec::with_capacity(capacity),
+            inner: Vec::with_capacity(capacity),
         }
     }
 
     pub fn len(&self) -> usize {
-        let len = self.comps.len();
-        debug_assert_eq!(
-            self.ids.len(),
-            len,
-            "ID & Component Vec lengths do not match."
-        );
-
-        len
+        self.inner.len()
     }
 
     pub fn push(&mut self, id: EntityId, t: T) -> Result<(), T> {
-        if self.ids.contains(&id) {
+        let contains_id = self.inner.iter().any(|(vec_id, _)| id == *vec_id);
+
+        if contains_id {
             Err(t)
         } else {
-            self.ids.push(id);
-            self.comps.push(t);
+            self.inner.push((id, t));
             Ok(())
         }
     }
 
     pub fn pop(&mut self) -> Option<(EntityId, T)> {
-        let id = self.ids.pop();
-        let comp = self.comps.pop();
-
-        match (id, comp) {
-            (Some(id), Some(comp)) => Some((id, comp)),
-            (None, None) => None,
-            _ => unsafe {
-                utils::debug_unreachable(
-                    "Invalid ComponentStorage state. ID & Component Vec lengths do not match.",
-                )
-            },
-        }
+        self.inner.pop()
     }
 
     pub fn remove(&mut self, index: usize) -> Option<(EntityId, T)> {
         if index >= self.len() {
             None
         } else {
-            let id = self.ids.remove(index);
-            let comp = self.comps.remove(index);
-
-            Some((id, comp))
+            Some(self.inner.remove(index))
         }
     }
 
     pub fn remove_by_id(&mut self, id: EntityId) -> Option<T> {
-        self.ids
+        self.inner
             .iter()
+            .map(|(other_id, _)| *other_id)
             .enumerate()
-            .find(|(_, &other_id)| id == other_id)
+            .find(|(_, other_id)| id == *other_id)
             .map(|(index, _)| index)
-            .and_then(|index| {
-                self.ids.remove(index);
-                self.comps.remove(index).into()
-            })
+            .map(|index| self.inner.remove(index).1)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (EntityId, &'_ T)> {
-        self.ids.iter().copied().zip(self.comps.iter())
+        self.inner.iter().map(|(id, t)| (*id, t))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (EntityId, &'_ mut T)> {
-        self.ids.iter().copied().zip(self.comps.iter_mut())
+        self.inner.iter_mut().map(|(id, t)| (*id, t))
     }
 
     pub fn comp_iter(&self) -> impl Iterator<Item = &'_ T> {
-        self.comps.iter()
+        self.inner.iter().map(|(_, t)| t)
     }
 
     pub fn comp_iter_mut(&mut self) -> impl Iterator<Item = &'_ mut T> {
-        self.comps.iter_mut()
+        self.inner.iter_mut().map(|(_, t)| t)
     }
 
     unsafe fn drop_component(ptr: *mut ComponentStorageBytes, entity: Entity) -> bool {
