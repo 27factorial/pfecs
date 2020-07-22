@@ -1,9 +1,9 @@
 #![deny(missing_debug_implementations)]
 
 pub use archetype::Archetype;
-pub use component::{Component, ComponentSet, ComponentTuple, IntoComponentTuple};
+pub use component::{Component, ComponentSet, ComponentTuple};
 pub use entity::Entity;
-pub use resource::{IntoResourceTuple, Resource, ResourceTuple};
+pub use resource::{Resource, ResourceTuple};
 pub use storage::{ReadComponent, ReadResource, WriteComponent, WriteResource};
 pub use system::{dispatch, System};
 pub use world::{query, World};

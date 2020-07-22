@@ -2,10 +2,10 @@ use parking_lot::RwLock;
 
 use crate::{
     archetype::Archetype,
-    component::{ComponentSet, ComponentTuple, IntoComponentTuple},
+    component::{ComponentSet, ComponentTuple},
     entity::{Entity, EntityId},
     storage::{ComponentStorageAllocator, ResourceStorageAllocator},
-    utils, IntoResourceTuple, ResourceTuple,
+    utils, ResourceTuple,
 };
 
 pub mod query;
