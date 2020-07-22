@@ -382,6 +382,11 @@ impl<T: Component> ComponentStorage<T> {
         self.inner.iter_mut().map(|(_, t)| t)
     }
 
+    pub fn sort(&mut self) {
+        self.inner
+            .sort_unstable_by(|(id1, _), (id2, _)| id1.cmp(id2))
+    }
+
     unsafe fn drop_component(ptr: *mut ComponentStorageBytes, entity: Entity) -> bool {
         let storage = &mut *mem::transmute::<_, *mut Self>(ptr);
 
