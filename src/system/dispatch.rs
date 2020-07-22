@@ -245,9 +245,20 @@ impl DispatchThread {
     }
 
     fn join(self) {
-        self.join_handle
-            .join()
-            .expect("Thread panicked during execution.");
+        let thread = self.join_handle.thread().clone();
+        let thread_name = thread.name().unwrap();
+
+        self.join_handle.join().unwrap_or_else(|e| {
+            let msg = if let Some(msg) = e.downcast_ref::<String>() {
+                format!("thread {} panicked at `{}`", thread_name, msg)
+            } else if let Some(&msg) = e.downcast_ref::<&str>() {
+                format!("thread {} panicked at `{}`", thread_name, msg)
+            } else {
+                format!("thread {} panicked at `Box<dyn Any + Send>`", thread_name)
+            };
+
+            panic!(msg);
+        })
     }
 
     fn thread_closure(shared: Arc<ThreadShared>) -> impl FnOnce() + Send {
