@@ -14,22 +14,6 @@ pub trait ComponentTuple: self::sealed::ComponentTupleSealed + 'static {
     fn store(self, entity: Entity, allocator: &mut ComponentStorageAllocator);
 }
 
-pub trait IntoComponentTuple<U> {
-    fn into(self) -> U;
-}
-
-impl<T: Component> IntoComponentTuple<(T,)> for T {
-    fn into(self) -> (T,) {
-        (self,)
-    }
-}
-
-impl<CT: ComponentTuple> IntoComponentTuple<Self> for CT {
-    fn into(self) -> Self {
-        self
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ComponentSet {
     ids: HashSet<TypeId>,

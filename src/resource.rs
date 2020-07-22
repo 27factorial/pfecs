@@ -8,22 +8,6 @@ pub trait ResourceTuple: self::sealed::ResourceTupleSealed + 'static {
     fn store(self, allocator: &mut ResourceStorageAllocator);
 }
 
-pub trait IntoResourceTuple<U> {
-    fn into(self) -> U;
-}
-
-impl<T: Resource> IntoResourceTuple<(T,)> for T {
-    fn into(self) -> (T,) {
-        (self,)
-    }
-}
-
-impl<CT: ResourceTuple> IntoResourceTuple<Self> for CT {
-    fn into(self) -> Self {
-        self
-    }
-}
-
 mod sealed {
     use super::*;
 
