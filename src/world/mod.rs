@@ -40,18 +40,16 @@ impl World {
         }
     }
 
-    pub fn create_entity_iter<I, ICT, CT>(&mut self, container: I) -> &[Entity]
+    pub fn create_entity_iter<I, CT>(&mut self, container: I) -> &[Entity]
     where
-        I: IntoIterator<Item = ICT>,
-        ICT: IntoComponentTuple<CT>,
+        I: IntoIterator<Item = CT>,
         CT: ComponentTuple,
     {
         let iter = container.into_iter();
         let start_index = self.entities.len();
         let comp_set = ComponentSet::from_tuple::<CT>();
 
-        for into_ct in iter {
-            let components = into_ct.into();
+        for components in iter {
             let entity = Entity::new(self.next_id);
             self.create_entity_impl(entity, components, &comp_set);
         }
@@ -59,53 +57,22 @@ impl World {
         &self.entities[start_index..]
     }
 
-    pub fn create_entity<ICT, CT>(&mut self, components: ICT) -> Entity
+    pub fn create_entity<CT>(&mut self, components: CT) -> Entity
     where
-        ICT: IntoComponentTuple<CT>,
         CT: ComponentTuple,
     {
         let comp_set = ComponentSet::from_tuple::<CT>();
-        let components = components.into();
         let entity = Entity::new(self.next_id);
 
         self.create_entity_impl(entity, components, &comp_set)
     }
 
-    pub fn add_components<ICT, CT>(&mut self, entity: Entity, components: ICT) -> Result<(), CT>
+    pub fn add_components<ICT, CT>(&mut self, entity: Entity, components: CT) -> Result<(), CT>
     where
-        ICT: IntoComponentTuple<CT>,
         CT: ComponentTuple,
     {
         let new_comp_set = ComponentSet::from_tuple::<CT>();
-        let components = components.into();
-        self.add_components_impl(entity, components, new_comp_set)
-    }
 
-    fn create_entity_impl<CT: ComponentTuple>(
-        &mut self,
-        entity: Entity,
-        components: CT,
-        comp_set: &ComponentSet,
-    ) -> Entity {
-        let archetype = match self.get_archetype_mut(&comp_set) {
-            Some(arch) => arch,
-            None => self.create_archetype::<CT>(comp_set.clone()),
-        };
-        archetype.push(entity);
-
-        components.store(entity, self.component_storage.get_mut());
-        self.entities.push(entity);
-        self.next_id += 1;
-
-        entity
-    }
-
-    fn add_components_impl<CT: ComponentTuple>(
-        &mut self,
-        entity: Entity,
-        components: CT,
-        new_comp_set: ComponentSet,
-    ) -> Result<(), CT> {
         let arch = match self.archetype_of_mut(entity) {
             Some(arch) => arch,
             None => return Err(components),
@@ -130,12 +97,29 @@ impl World {
         Ok(())
     }
 
-    pub fn add_resources<IRT, RT>(&mut self, resources: IRT)
+    fn create_entity_impl<CT: ComponentTuple>(
+        &mut self,
+        entity: Entity,
+        components: CT,
+        comp_set: &ComponentSet,
+    ) -> Entity {
+        let archetype = match self.get_archetype_mut(&comp_set) {
+            Some(arch) => arch,
+            None => self.create_archetype::<CT>(comp_set.clone()),
+        };
+        archetype.push(entity);
+
+        components.store(entity, self.component_storage.get_mut());
+        self.entities.push(entity);
+        self.next_id += 1;
+
+        entity
+    }
+
+    pub fn add_resources<RT>(&mut self, resources: RT)
     where
-        IRT: IntoResourceTuple<RT>,
         RT: ResourceTuple,
     {
-        let resources = resources.into();
         resources.store(self.resource_storage.get_mut());
     }
 
