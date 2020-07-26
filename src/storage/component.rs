@@ -393,6 +393,18 @@ impl<T: Component> ComponentStorage<T> {
             })
     }
 
+    pub fn entities(&self) -> &[EntityId] {
+        &self.ids
+    }
+
+    pub fn components(&self) -> &[T] {
+        &self.comps
+    }
+
+    pub fn components_mut(&mut self) -> &mut [T] {
+        &mut self.comps
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (EntityId, &'_ T)> {
         self.ids.iter().copied().zip(self.comps.iter())
     }
