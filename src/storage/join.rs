@@ -68,11 +68,13 @@ pub struct ParJoinIter<ST: Join> {
 }
 
 mod sealed {
+    use std::mem;
+
     use parking_lot::Mutex;
     use rayon::iter::plumbing::{Consumer, UnindexedConsumer};
 
     use crate::storage::ComponentStorage;
-    use crate::Component;
+    use crate::{Component, ReadComponent, WriteComponent};
 
     use super::*;
 
@@ -130,6 +132,78 @@ mod sealed {
             // relationship, and statically assures that there
             // can be no other mutable borrows to `self`.
             &mut *(self.components_mut().get_unchecked_mut(index) as *mut _)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for ReadComponent<'a, T> {
+        type Item = &'a T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            self.storage.data.get_item(id)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a ReadComponent<'a, T> {
+        type Item = &'a T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            (&mut &*self.storage.data).get_item(id)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a mut ReadComponent<'a, T> {
+        type Item = &'a T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            self.storage.data.get_item(id)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for WriteComponent<'a, T> {
+        type Item = &'a mut T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            self.storage.data.get_item(id)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a WriteComponent<'a, T> {
+        type Item = &'a T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            (&mut &*self.storage.data).get_item(id)
+        }
+    }
+
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a mut WriteComponent<'a, T> {
+        type Item = &'a mut T;
+
+        fn ids(&self) -> &[u64] {
+            self.storage.data.ids()
+        }
+
+        unsafe fn get_item(&mut self, id: u64) -> Self::Item {
+            self.storage.data.get_item(id)
         }
     }
 
@@ -214,12 +288,16 @@ mod sealed {
 
                     ids.par_iter()
                         .map(|id| {
-                            let mut guard = tuple.lock();
+                            mem::forget(tuple.lock());
 
+                            // TODO: Test extensively with miri.
                             #[allow(non_snake_case)]
-                            let ($t,) = &mut *guard;
-
-                            unsafe { (StoragePriv::get_item($t, *id),) }
+                            unsafe {
+                                let ($t,) = &mut *tuple.data_ptr();
+                                let mapped = (StoragePriv::get_item($t, *id),);
+                                tuple.force_unlock();
+                                mapped
+                            }
                         })
                         .drive_unindexed(consumer)
                 }
@@ -313,12 +391,16 @@ mod sealed {
 
                     ids.par_iter()
                         .map(|id| {
-                            let mut guard = tuple.lock();
+                            mem::forget(tuple.lock());
 
+                            // TODO: Test extensively with miri.
                             #[allow(non_snake_case)]
-                            let ($($t),+) = &mut *guard;
-
-                            unsafe { ($(StoragePriv::get_item($t, *id)),+) }
+                            unsafe {
+                                let ($($t),+) = &mut *tuple.data_ptr();
+                                let mapped = ($(StoragePriv::get_item($t, *id)),+);
+                                tuple.force_unlock();
+                                mapped
+                            }
                         })
                         .drive_unindexed(consumer)
                 }
