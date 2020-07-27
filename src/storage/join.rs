@@ -1,10 +1,6 @@
-use std::cell::UnsafeCell;
-use std::sync::atomic::AtomicUsize;
-
-use crossbeam::channel::{self, Receiver, Sender};
+use crossbeam::channel::{self};
 use rayon::prelude::*;
 
-use crate::cell::AtomicRefCell;
 use crate::entity::EntityId;
 
 fn intersect(ids: &[&[EntityId]]) -> Vec<EntityId> {
