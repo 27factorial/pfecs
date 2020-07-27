@@ -4,7 +4,7 @@ pub use archetype::Archetype;
 pub use component::{Component, ComponentSet, ComponentTuple};
 pub use entity::Entity;
 pub use resource::{Resource, ResourceTuple};
-pub use storage::{ReadComponent, ReadResource, WriteComponent, WriteResource};
+pub use storage::{Join, ReadComponent, ReadResource, WriteComponent, WriteResource};
 pub use system::{dispatch, System};
 pub use world::{query, World};
 
