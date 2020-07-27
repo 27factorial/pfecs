@@ -433,7 +433,7 @@ impl<T: Component> ComponentStorage<T> {
 
 #[derive(Debug)]
 pub struct Read<'a, T: Component> {
-    storage: AtomicRef<'a, ComponentStorage<T>>,
+    pub(crate) storage: AtomicRef<'a, ComponentStorage<T>>,
 }
 
 impl<'a, T: Component> Read<'a, T> {
@@ -452,7 +452,7 @@ impl<T: Component> Deref for Read<'_, T> {
 
 #[derive(Debug)]
 pub struct Write<'a, T: Component> {
-    storage: AtomicRefMut<'a, ComponentStorage<T>>,
+    pub(crate) storage: AtomicRefMut<'a, ComponentStorage<T>>,
 }
 
 impl<'a, T: Component> Write<'a, T> {

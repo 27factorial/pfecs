@@ -132,7 +132,7 @@ unsafe impl<T: ?Sized + Send> Sync for AtomicRefCell<T> {}
 #[derive(Debug)]
 pub struct AtomicRef<'a, T: ?Sized> {
     flag: &'a AtomicUsize,
-    data: &'a T,
+    pub(crate) data: &'a T,
 }
 
 impl<'a, T: ?Sized> AtomicRef<'a, T> {
@@ -168,7 +168,7 @@ impl<T: ?Sized> Drop for AtomicRef<'_, T> {
 #[derive(Debug)]
 pub struct AtomicRefMut<'a, T: ?Sized> {
     flag: &'a AtomicUsize,
-    data: &'a mut T,
+    pub(crate) data: &'a mut T,
 }
 
 impl<'a, T: ?Sized> AtomicRefMut<'a, T> {
