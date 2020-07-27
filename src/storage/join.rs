@@ -1,11 +1,18 @@
+use std::cell::UnsafeCell;
+use std::sync::atomic::AtomicUsize;
+
+use crossbeam::channel::{self, Receiver, Sender};
+use rayon::prelude::*;
+
+use crate::cell::AtomicRefCell;
 use crate::entity::EntityId;
 
-fn intersection(vecs: &[&[EntityId]]) -> Vec<EntityId> {
-    let capacity: usize = vecs.iter().map(|vec| vec.len()).sum();
+fn intersect(ids: &[&[EntityId]]) -> Vec<EntityId> {
+    let capacity: usize = ids.iter().map(|slice| slice.len()).sum();
     let mut intersect = Vec::with_capacity(capacity);
 
-    vecs.iter().flat_map(|vec| vec.iter()).for_each(|id| {
-        if vecs.iter().all(|vec| vec.contains(id)) {
+    ids.iter().flat_map(|slice| slice.iter()).for_each(|id| {
+        if ids.iter().all(|slice| slice.contains(id)) {
             intersect.push(*id)
         }
     });
@@ -17,11 +24,34 @@ fn intersection(vecs: &[&[EntityId]]) -> Vec<EntityId> {
     intersect
 }
 
+fn par_intersect(ids: &[&[EntityId]]) -> Vec<EntityId> {
+    let capacity: usize = ids.iter().map(|slice| slice.len()).sum();
+    let (sender, receiver) = channel::bounded(capacity);
+
+    ids.par_iter()
+        .flat_map(|slice| slice.par_iter())
+        .for_each_with(sender, |sender, id| {
+            if ids.par_iter().all(|slice| slice.contains(id)) {
+                sender
+                    .send(*id)
+                    .expect("Could not send over par_intersect channel.");
+            }
+        });
+
+    // Ensure that there is only one of each EntityId.
+    let mut intersect: Vec<_> = receiver.into_iter().collect();
+    intersect.par_sort_unstable();
+    intersect.dedup();
+
+    intersect
+}
+
 pub trait Join: sealed::StorageTuple
 where
     Self: Sized,
 {
     fn join(self) -> JoinIter<Self>;
+    fn par_join(self) -> ParJoinIter<Self>;
 }
 
 #[derive(Debug)]
@@ -31,7 +61,16 @@ pub struct JoinIter<ST: Join> {
     current: usize,
 }
 
+#[derive(Debug)]
+pub struct ParJoinIter<ST: Join> {
+    tuple: ST,
+    ids: Vec<EntityId>,
+}
+
 mod sealed {
+    use parking_lot::Mutex;
+    use rayon::iter::plumbing::{Consumer, UnindexedConsumer};
+
     use crate::storage::ComponentStorage;
     use crate::Component;
 
@@ -109,7 +148,7 @@ mod sealed {
                     #[allow(non_snake_case)]
                     let (tuple, ids) = {
                         let ($t,) = self;
-                        let ids = intersection(&[&$t.ids()]);
+                        let ids = intersect(&[&$t.ids()]);
                         (($t,), ids)
                     };
 
@@ -117,6 +156,20 @@ mod sealed {
                         tuple,
                         ids,
                         current: 0,
+                    }
+                }
+
+                fn par_join(self) -> ParJoinIter<Self> {
+                    #[allow(non_snake_case)]
+                    let (tuple, ids) = {
+                        let ($t,) = self;
+                        let ids = par_intersect(&[&$t.ids()]);
+                        (($t,), ids)
+                    };
+
+                    ParJoinIter {
+                        tuple,
+                        ids,
                     }
                 }
             }
@@ -144,6 +197,33 @@ mod sealed {
                     }
                 }
             }
+
+            impl<$t> ParallelIterator for ParJoinIter<($t,)>
+            where
+                $t: StoragePriv + Send,
+                <$t as StoragePriv>::Item: Send,
+            {
+                type Item = (<$t as StoragePriv>::Item,);
+
+                fn drive_unindexed<C>(self, consumer: C) -> <C as Consumer<Self::Item>>::Result
+                where
+                    C: UnindexedConsumer<Self::Item>,
+                {
+                    let Self { tuple, ids } = self;
+                    let tuple = Mutex::new(tuple);
+
+                    ids.par_iter()
+                        .map(|id| {
+                            let mut guard = tuple.lock();
+
+                            #[allow(non_snake_case)]
+                            let ($t,) = &mut *guard;
+
+                            unsafe { (StoragePriv::get_item($t, *id),) }
+                        })
+                        .drive_unindexed(consumer)
+                }
+            }
         };
         ($($t:tt),+$(,)?) => {
             impl<$($t),+> StorageTuple for ($($t),+)
@@ -163,7 +243,7 @@ mod sealed {
                     #[allow(non_snake_case)]
                     let (tuple, ids) = {
                         let ($($t),+) = self;
-                        let ids = intersection(&[$(&$t.ids()),+]);
+                        let ids = intersect(&[$(&$t.ids()),+]);
                         (($($t),+), ids)
                     };
 
@@ -171,6 +251,20 @@ mod sealed {
                         tuple,
                         ids,
                         current: 0,
+                    }
+                }
+
+                fn par_join(self) -> ParJoinIter<Self> {
+                    #[allow(non_snake_case)]
+                    let (tuple, ids) = {
+                        let ($($t),+) = self;
+                        let ids = par_intersect(&[$(&$t.ids()),+]);
+                        (($($t),+), ids)
+                    };
+
+                    ParJoinIter {
+                        tuple,
+                        ids,
                     }
                 }
             }
@@ -198,6 +292,35 @@ mod sealed {
                     } else {
                         None
                     }
+                }
+            }
+
+            impl<$($t),+> ParallelIterator for ParJoinIter<($($t),+)>
+            where
+                $(
+                    $t: StoragePriv + Send,
+                    <$t as StoragePriv>::Item: Send,
+                )+
+            {
+                type Item = ($(<$t as StoragePriv>::Item),+);
+
+                fn drive_unindexed<C>(self, consumer: C) -> <C as Consumer<Self::Item>>::Result
+                where
+                    C: UnindexedConsumer<Self::Item>,
+                {
+                    let Self { tuple, ids } = self;
+                    let tuple = Mutex::new(tuple);
+
+                    ids.par_iter()
+                        .map(|id| {
+                            let mut guard = tuple.lock();
+
+                            #[allow(non_snake_case)]
+                            let ($($t),+) = &mut *guard;
+
+                            unsafe { ($(StoragePriv::get_item($t, *id)),+) }
+                        })
+                        .drive_unindexed(consumer)
                 }
             }
         };
