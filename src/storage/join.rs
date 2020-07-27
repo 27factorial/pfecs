@@ -85,8 +85,8 @@ mod sealed {
         unsafe fn get_item(&mut self, id: EntityId) -> Self::Item;
     }
 
-    impl<'a, T0: Component + Send + Sync> StoragePriv for &'a ComponentStorage<T0> {
-        type Item = &'a T0;
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a ComponentStorage<T> {
+        type Item = &'a T;
 
         fn ids(&self) -> &[EntityId] {
             &self.entities()
@@ -106,8 +106,8 @@ mod sealed {
         }
     }
 
-    impl<'a, T0: Component + Send + Sync> StoragePriv for &'a mut ComponentStorage<T0> {
-        type Item = &'a mut T0;
+    impl<'a, T: Component + Send + Sync> StoragePriv for &'a mut ComponentStorage<T> {
+        type Item = &'a mut T;
 
         fn ids(&self) -> &[EntityId] {
             &self.entities()
