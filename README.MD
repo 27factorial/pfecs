@@ -1,3 +1,3 @@
 # PFECS
 
-This repository contains the implementation of the Projekt F ECS.
+This repository contains the implementation of the Project F ECS.
